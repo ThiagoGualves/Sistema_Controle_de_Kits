@@ -38,9 +38,27 @@ public class SistemaControleKits {
         }
     }
 
-    public static boolean validarCpf(String cpf) {
-         String cpfNumerico = cpf.replaceAll("\\D", "");
-            return cpfNumerico.length() == 11;
+    public static boolean validarCpf(String cpf, List<Professor> professores) {
+    if (cpf == null || cpf.isEmpty()) {
+        return false;
+    }
+
+    // Remover caracteres não numéricos
+    String cpfNumerico = cpf.replaceAll("\\D", "");
+
+    // Verifica se tem 11 dígitos numéricos
+    if (cpfNumerico.length() != 11) {
+        return false;
+    }
+
+    // Verifica se o CPF já está cadastrado
+     for (Professor professor : professores) {
+        if (professor.getCpf().replaceAll("\\D", "").equals(cpfNumerico)) {
+            return false; // CPF já existe
+        }
+    }
+
+    return true; // CPF válido e ainda não cadastrado
 }
 
     static class Kit {
@@ -81,6 +99,15 @@ public class SistemaControleKits {
         public String toString() {
             return "Kit: " + descricao + " | Código: " + codigo;
         }
+    }
+
+    public static boolean codigoKitUnico(String codigo, List<Kit> kits) {
+        for (Kit kit : kits) {
+            if (kit.getCodigo().equalsIgnoreCase(codigo)) {
+                return true; 
+            }
+        }
+        return false; 
     }
 
     static class Registro {
@@ -155,7 +182,7 @@ public class Continuacao {
     private List<Kit> kits = new ArrayList<>();
     private List<AcaoRegistro> historico = new ArrayList<>();
 
-    private Scanner scanner = new Scanner(System.in);
+    private Scanner scanner = new Scanner(System.in, "UTF-8");
 
 
     public static void main(String[] args) {
@@ -227,33 +254,36 @@ public class Continuacao {
     }
 
     private void cadastrarProfessor() {
+        
 
         do { 
             System.out.println("=== Cadastro de Professores ===");
 
+        Scanner scanner = new Scanner(System.in, "UTF-8");
         String nome;
         while(true) {
             System.out.print("Nome: ");
            nome = scanner.nextLine();
 
-           if(nome.matches("[a-zA-zÀ-ÿ\\s]+")) {
+           if (nome.matches("^[A-Za-zÀ-ÿ'\\s]+$")) {
             break;
            } else {
-            System.out.println("Nome inválido !");
+            System.out.println("Nome inválido!");
            }
         }
         
-        System.out.print("CPF: ");
-        String cpf;
-        do { 
-            cpf = scanner.nextLine();
-            if (!validarCpf(cpf)) {
-                System.out.println("CPF inválido !");
-                System.out.print("CPF: ");
-            }
-        } while (!validarCpf(cpf));
+            String cpf;
+            while (true) {
+            System.out.print("Digite o CPF: ");
+            cpf = scanner.nextLine().trim();
 
-        professores.add(new Professor(cpf, nome));
+            if (validarCpf(cpf, professores)) {
+                break;
+            } else {
+                System.out.println("CPF inválido ou já cadastrado!");
+            }
+}
+        professores.add(new Professor(cpf.replaceAll("\\D", ""), nome));
         historico.add(new AcaoRegistro("Professor cadastrado: " + nome));
         System.out.println("Professor cadastrado com sucesso!");
 
@@ -275,19 +305,23 @@ public class Continuacao {
     }
 
      private void editarProfessor() {
-
         do { 
             System.out.println("=== Editar Professor ===");
         listarProfessor();
+        
         if (professores.isEmpty()) {
             System.out.println("Nenhum professor cadastrado.");
-            return;
+            break;
         } 
+
+        Professor professor = null;
+
+        while (true) {
 
         System.out.print("Digite o CPF do professor para editar: ");
         String cpf = scanner.nextLine();
 
-        Professor professor = null;
+        
         for (Professor p: professores) {
             if(p.getCpf().equals(cpf)) {
                 professor = p;
@@ -295,10 +329,13 @@ public class Continuacao {
             }
         }
 
-        if (professor == null) {
+        if (professor != null) {
+            break;
+        } else {
             System.out.println("CPF inválido.");
-            return;
         }
+
+    }
 
         System.out.print("Novo nome: ");
         String novoNome = scanner.nextLine();
@@ -313,8 +350,6 @@ public class Continuacao {
         } while (AcaoRegistro.Continuacao.desejaContinuar(scanner, "Deseja editar mais algum professor?"));
 
         System.out.println("Edição realizada!");
-
-        
     }
 
      private void removerProfessor() {
@@ -351,11 +386,21 @@ public class Continuacao {
     private void cadastrarKit() {
 
         do {
-            System.out.println("=== Cadastro de Kits ===");
 
-        System.out.print("Código do Kit: ");
-        String codigo = scanner.nextLine();
-        System.out.print("Descrição: ");
+        System.out.println("=== Cadastro de Kits ===");
+        String codigo;
+        while (true) {
+        System.out.print("Digite o código do kit: ");
+        codigo = scanner.nextLine().trim();
+
+        if (!codigoKitUnico(codigo, kits)) {
+            break;
+        } else {
+            System.out.println("Este código já está em uso. Digite um diferente.");
+        }
+}
+
+        System.out.print("Digite a descrição do kit: ");
         String descricao = scanner.nextLine();
 
         kits.add(new Kit(codigo, descricao));
@@ -368,10 +413,12 @@ public class Continuacao {
     }
 
     private void listarKit() {
+
         if (kits.isEmpty()) {
             System.out.println("Nenhum kit cadastrado.");
             return;
         }
+
         System.out.println("\n=== Lista de Kits ===");
         for (int i = 0; i < kits.size(); i++) {
             System.out.println((i + 1) + " - " + kits.get(i));
@@ -379,31 +426,34 @@ public class Continuacao {
     }
 
     private void editarKit() {
-
         do { 
             System.out.println("=== Editar Kit ===");
         listarKit();
-        if (kits.isEmpty()) {
+
+         if (kits.isEmpty()) {
             System.out.println("Nenhum Kit cadastrado.");
-            return;
+            break;
         } 
-
-        System.out.print("Digite o código do kit para editar: ");
-        String codigo = scanner.nextLine();
-
         Kit kit = null;
+
+        while (true) {
+
+         System.out.print("Digite o código do kit para editar: ");
+         String codigo = scanner.nextLine().trim();
+
         for(Kit k: kits) {
             if(k.getCodigo().equals(codigo)) {
                 kit = k;
                 break;
             }
         }
-
-        if (kit == null) {
+       
+        if (kit != null) {
+            break;
+        } else {
             System.out.println("Código Inválido.");
-            return;
         }
-
+    }
         System.out.print("Novo kit: ");
         String novoKit = scanner.nextLine();
         kit.setDescricao(novoKit);
